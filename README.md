@@ -1,22 +1,21 @@
 # oozou-exam-01
 
-**First of all, I have designed infrastructure or architecture of this system.
-You can look from this linked "https://drive.google.com/file/d/1FpFVDG-f0JY9zM-ZcTnfNPPKa3A_g2O7/view?usp=sharing"**
+**Firstly, I designed the infrastructure or architecture of this system, which you can review  "https://drive.google.com/file/d/1FpFVDG-f0JY9zM-ZcTnfNPPKa3A_g2O7/view?usp=sharing"**
 
 **Git structure**
 
- /$ENV [Contains Backend,Intrastrucures, and Dependencies for each environments]
+/$ENV [Contains Backend, Infrastructures, and Dependencies for each environment]
 
- /$ENV/Backend [Contains Terraform files for create S3 and Dynamo which using for backend of Infrastructure]
+/$ENV/Backend [Contains Terraform files to create S3 and Dynamo used for the backend of the Infrastructure]
 
- /$ENV/Dependecies [Contains storageclass.yml, Helm charts of Graphite, and deployment-app-send-metrics.yml]
+/$ENV/Dependencies [Contains storageclass.yml, Helm charts of Graphite, and deployment-app-send-metrics.yml]
 
- /.github/workflows [Contains terraform.yml for triggers to Terraform Cloud]
+/.github/workflows [Contains terraform.yml for triggers to Terraform Cloud]
 ****
 
 **My journey**
 
-1. I have prepared Terraform Cloud 1 Project and 6 Workspaces below.
+1. I set up Terraform Cloud with one Project and six Workspaces:
     - Projects: belieftfeks
         - Workspaces:
             - oozou-exam-01-DEV-backend
@@ -24,116 +23,60 @@ You can look from this linked "https://drive.google.com/file/d/1FpFVDG-f0JY9zM-Z
             - oozou-exam-01-UAT-backend
             - oozou-exam-01-UAT-infra            
             - oozou-exam-01-PRD-backend
-            - oozou-exam-01-PRD-infra            
+            - oozou-exam-01-PRD-infra        
 
-    Workspace backend for trigger run plan in /$ENV/Backend
+    The backend Workspace triggers the run plan in /$ENV/Backend, and the infra Workspace triggers the run plan in /$ENV/Infrastructure.
 
-    Workspace infra for trigger run plan in /$ENV/Infrastructure
-
-2. I have prepared Terraform Files in /$ENV/Backend to create S3 bucket and DynamoDB for collect .tfstate.
+2. Terraform Files in /$ENV/Backend to create S3 bucket and DynamoDB for collecting .tfstate:
     - s3.tf contains resources "s3".
     - dynamo.tf contains resources "dynamodb_table".
 
     
-3. I have prepared Terraform Files to create VPC, EKS, EFS and Add-ons (Module EKS Blueprints + Module EFS) in /$ENV/Infrastructure.
-    - backend.tf for reference backend of this Terraform.
-    ```
-    terraform {
-        backend "s3" {
-            bucket         = "s3-eks-blueprint-01-dev"
-            key            = "s3-eks-blueprint-01-dev/terraform.tfstate"
-            region         = "ap-southeast-1"
-            encrypt        = true
-            dynamodb_table = "eks-blueprint-lock"
-        }
-    }
-    ```
-    - 0-network.tf contains module "vpc" for create VPC to using in this system.
-    ```
-    module "vpc" {
-    source  = "terraform-aws-modules/vpc/aws"
-    version = "~> 5.1.2"
-    name = "vpc-eks-blueprints-dev"
-    cidr = "10.35.0.0/16"
-    azs             = ["ap-southeast-1a", "ap-southeast-1b", "ap-southeast-1c"]
-    private_subnets = ["10.35.1.0/24", "10.35.2.0/24", "10.35.3.0/24"]
-    public_subnets  = ["10.35.101.0/24", "10.35.102.0/24", "10.35.103.0/24"]
-    enable_nat_gateway     = true
-    single_nat_gateway     = true
-    one_nat_gateway_per_az = false
-    }
-    ```
-    - 1-eks.tf contains module "eks" for create EKS cluster and node groups for app and metrics-server via labels.
+3. Terraform Files to create VPC, EKS, EFS, and Add-ons (Module EKS Blueprints + Module EFS) in /$ENV/Infrastructure:
+    - backend.tf  for referencing the backend of this Terraform.
 
-    ```
-    module "eks" {
-    source  = "terraform-aws-modules/eks/aws"
-    version = "~> 19.17"
+    - 0-network.tf contains the module "vpc" to create a VPC for use in this system.
 
-    cluster_name                   = "eks-blueprints-01"
-    cluster_version                = "1.27"
-    cluster_endpoint_public_access = true
+    - 1-eks.tf contains the module "eks" to create an EKS cluster and node groups for app and metrics-server via labels.
 
-    vpc_id     = module.vpc.vpc_id
-    subnet_ids = module.vpc.private_subnets
+    - 2-efs.tf contains the module "clouddrove/efs/aws" to create EFS, which will be used by Graphite-server.
 
-    eks_managed_node_groups = {
-        default = {
-        min_size     = 2
-        max_size     = 3
-        desired_size = 2
+    - 3-addons.tf  contains the module "aws-ia/eks-blueprints-addons/aws" to deploy dependencies predefined by the module, such as:
+        - argocd
+        - efs-csi-driver
+        - ebs-csi-driver
+        - ingress-nginx
 
-        instance_types = ["t3.medium"]
-        capacity_type  = "SPOT"
-        }
-
-        dev-app = {
-        min_size     = 2
-        max_size     = 4
-        desired_size = 2
-
-        instance_types = ["t3.medium"]
-        capacity_type  = "SPOT"
-        labels = {
-            Environment = "dev"
-            app  = "yes"
-            }      
-        }    
-
-        dev-metric = {
-        min_size     = 2
-        max_size     = 4
-        desired_size = 2
-
-        instance_types = ["t3.medium"]
-        capacity_type  = "SPOT"
-        labels = {
-            Environment = "dev"
-            graphite  = "yes"
-            }      
-        }        
-    }    
+4. After applying /$ENV/Infrastructure:
+    - ArgoCD: two ways to access the ArgoCD GUI
+        - `kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443` and tunneling to localhost.
     
-    manage_aws_auth_configmap = true
-    aws_auth_roles            = []
-    aws_auth_users            = []
-    }  
-    ```
-    - 2-efs.tf contains module "clouddrove/efs/aws"  for create EFS which it will using by Graphite-server.
+        - Change the type of service svc/argo-cd-argocd-server from Cluster-IP to LoadBalancer.
 
-    ```
-    module "efs" {
-      source                    = "clouddrove/efs/aws"
-      version                   = "1.3.0"
-      name                      = "efs-eks-uat"
-      region                    = "ap-southeast-1"
-      creation_token            = "yay"
-      availability_zones        = ["ap-southeast-1a", "ap-southeast-1b", "ap-southeast-1c"]
-      vpc_id                    = module.vpc.vpc_id
-      subnets                   = module.vpc.private_subnets
-      security_groups           = [module.vpc.default_security_group_id]
-      efs_backup_policy_enabled = true
-    }
-    ```
+    - Get Password for access to Argocd with `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d`
 
+    - esf-csi-driver: Now can use storageclass to use volumes from EFS.
 
+5. Setup storageclass via storageclass.yml in /$ENV/Denpendencies
+    ```
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+    name: efs-sc
+    provisioner: efs.csi.aws.com
+    parameters:
+    provisioningMode: efs-ap
+    fileSystemId: xxxx
+    accessPointId: xxxx
+    directoryPerms: "755"  # Change the permissions value to meet the minimum size requirement
+    ```
+    - fileSystemID:  Use the ID from the Filesystem created in the Infrastructure section.
+    - accessPointID: Use the ID from the Access Point in the Filesystem.
+
+6. Prepared Helm Charts (values.yml and some templates for using variables from values.yml to deployment) to deploy Graphite in /$ENV/Dependencies/helm with the command `helm install`.
+
+7. I change endpoints in index.js from localhost to service of graphite
+    `const metrics = new lynx('graphite-server-graphite-server-dev.default.svc.cluster.local', 8125);`
+    After that, I build and push to `thamkrabok/app-send-metrics:1.0.0`
+
+8. I have prepared deployment-app-send-metrics.yml in /$ENV/Dependencies for deploy app with command `kubectl apply -f deployment-app-send-metrics.yml`
