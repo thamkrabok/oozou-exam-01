@@ -5,7 +5,7 @@ terraform {
     key            = "s3-eks-blueprint-01-uat/terraform.tfstate"
     region         = "ap-southeast-1"
     encrypt        = true
-    dynamodb_table = "eks-blueprint-lock"
+    dynamodb_table = "eks-blueprint-lock-uat"
   }
 }
 
