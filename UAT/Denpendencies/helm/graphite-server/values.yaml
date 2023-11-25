@@ -1,0 +1,106 @@
+# Default values for graphite-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: graphiteapp/graphite-statsd
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+ingress: 
+  enable: false
+
+service:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30501  # Specify the desired NodePort for HTTP
+    - name: carbon
+      port: 2003
+      targetPort: 2003
+      nodePort: 30502  # Specify the desired NodePort for Carbon
+    - name: carbon-relay
+      port: 2004
+      targetPort: 2004
+      nodePort: 30503  # Specify the desired NodePort for Carbon Relay
+    - name: carbon-agg
+      port: 2023
+      targetPort: 2023
+      nodePort: 30504  # Specify the desired NodePort for Carbon Aggregator
+    - name: carbon-aggrelay
+      port: 2024
+      targetPort: 2024
+      nodePort: 30505  # Specify the desired NodePort for Carbon Aggregator Relay
+    - name: statsd-udp
+      port: 8125
+      targetPort: 8125
+      nodePort: 30506  # Specify the desired NodePort for StatsD UDP
+    - name: statsd-tcp
+      port: 8126
+      targetPort: 8126
+      nodePort: 30507  # Specify the desired NodePort for StatsD TCP
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+persistence:
+  enabled: true
+  storageClass: "efs-sc"
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: graphite
+              operator: In
+              values:
+                - "yes"
+            - key: Environment
+              operator: In
+              values:
+                - "uat"                
