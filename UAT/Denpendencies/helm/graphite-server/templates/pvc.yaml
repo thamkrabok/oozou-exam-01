@@ -1,0 +1,19 @@
+# pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "graphite-server.fullname" . }}-storage
+  labels:
+    {{- include "graphite-server.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+  {{- with .Values.persistence.annotations }}
+  annotations:
+    {{ toYaml . | nindent 8 }}
+  {{- end }}
+
