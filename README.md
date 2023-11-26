@@ -73,7 +73,10 @@
     - fileSystemID:  Use the ID from the Filesystem created in the Infrastructure section.
     - accessPointID: Use the ID from the Access Point in the Filesystem.
 
-6. Prepared Helm Charts (values.yml and some templates for using variables from values.yml to deployment) to deploy Graphite in /$ENV/Dependencies/helm with the command `helm install`.
+6. Prepared Helm Charts to deploy Graphite in /$ENV/Dependencies/helm with the command `helm install`.
+    - I configured values.yaml to use PVC for claiming volumes from EFS by referencing a storage class.
+    - I configured values.yaml to create a LoadBalancer service type and append NodePort to all ports of Graphite.
+    - I configured templates/deployment.yaml, templates/service.yaml, and templates/pvc.yml to use variables from values.yaml.
 
 7. I change endpoints in index.js from localhost to service of graphite
     `const metrics = new lynx('graphite-server-graphite-server-dev.default.svc.cluster.local', 8125);`
